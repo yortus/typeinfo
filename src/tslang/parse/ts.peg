@@ -1,0 +1,475 @@
+﻿/*
+TODO:
+automatic semicolon insertion: http://www.ecma-international.org/ecma-262/5.1/#sec-7.9
+js emit
+*/
+{
+    var builders = {};
+    var b = builders;
+
+    function Node(type) {
+        this.type = type;
+    }
+    Node.prototype.id = function (name) { this.id = { type: 'Identifier', name: name }; }
+
+
+
+
+    b.declarationSourceFile = function (body) {
+        var result = new Node('DeclarationSourceFile');
+        result.body = body;
+        return result;
+        //return {
+        //    type: 'DeclarationSourceFile',
+        //    body: body
+        //};
+    };
+    b.externalModuleDeclaration = function (id, body) {
+        return {
+            type: 'ExternalModuleDeclaration',
+            id: id,
+            body: body
+        };
+    };
+    b.internalModuleDeclaration = function (id, body) {
+        return {
+            type: 'InternalModuleDeclaration',
+            id: id,
+            body: body
+        };
+    };
+    b.functionDeclaration = function (id, typeParams, params, rest, ret) {
+        return {
+            type: 'FunctionDeclaration',
+            id: id || null,
+            typeParams: typeParams || [],
+            params: params || [],
+            rest: rest || null,
+            return: ret || null
+        };
+    };
+    b.type = function () {
+        //TODO:...
+        return {
+            type: 'Type'
+        };
+    };
+    b.identifier = function (name) {
+        return {
+            type: 'Identifier',
+            name: name
+        };
+    };
+    b.identifierPath = function (names) {
+        return {
+            type: 'IdentifierPath',
+            names: names
+        };
+    };
+    b.named = function (decl, id) {
+        var result = { type: '', id: id };
+        for (var key in decl) result[key] = decl[key];
+        return result;
+    }
+    b.typed = function (decl, typeAnnotation) {
+        var result = {};
+        for (var key in decl) result[key] = decl[key];
+        result.typeAnnotation = typeAnnotation;
+        return result;
+    }
+    b.exported = function (decl) {
+        var result = {};
+        for (var key in decl) result[key] = decl[key];
+        result.exported = true;
+        return result;
+    }
+    b.optional = function (decl) {
+        var result = {};
+        for (var key in decl) result[key] = decl[key];
+        result.optional = true;
+        return result;
+    }
+}
+
+
+
+DeclarationSourceFile
+= body:DeclarationElement*  WS  !.  { return b.declarationSourceFile(body); }
+
+DeclarationElement
+= ExportAssignment  {/***/}
+/ AmbientExternalModuleDeclaration
+/ WS  x:"export"?  el:InterfaceDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:TypeAliasDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:ExternalImportDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:ImportDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:AmbientDeclaration  { return x ? b.exported(el) : el; }
+
+ExternalImportDeclaration
+= WS  "import"  WS  IDENTIFIER  WS  "="  ExternalModuleReference  WS  ";"  {/***/}
+
+ExternalModuleReference
+= WS  "require"  WS  "("  WS  STRING_LITERAL  WS  ")"  {/***/}
+
+ExportAssignment
+= WS  "export"  WS  "="  WS  IDENTIFIER  WS  ";"  {/***/}
+
+AmbientDeclaration
+= WS  "declare"  el:AmbientVariableDeclaration  { return b.exported(el); }
+/ WS  "declare"  el:AmbientFunctionDeclaration  { return b.exported(el); }
+/ WS  "declare"  el:AmbientClassDeclaration  { return b.exported(el); }
+/ WS  "declare"  el:AmbientEnumDeclaration  { return b.exported(el); }
+/ WS  "declare"  el:AmbientModuleDeclaration  { return b.exported(el); }
+
+AmbientVariableDeclaration
+= WS  "var"  WS  IDENTIFIER  TypeAnnotation?  WS  ";"  {/***/}
+
+AmbientFunctionDeclaration
+= WS  "function"  WS  id:IDENTIFIER  cs:CallSignature  WS  ";"  { return b.functionDeclaration(b.identifier(id), [], cs, [], null, null); /***/ }
+
+AmbientClassDeclaration
+= WS  "class"  WS  IDENTIFIER  TypeParameters?  ClassHeritage  WS  "{"  AmbientClassBody  WS  "}"  {/***/}
+
+AmbientClassBody
+= AmbientClassBodyElement*  {/***/}
+
+AmbientClassBodyElement
+= AmbientConstructorDeclaration  {/***/}
+/ AmbientPropertyMemberDeclaration  {/***/}
+/ IndexSignature  {/***/}
+
+AmbientConstructorDeclaration
+= WS  "constructor"  WS  "("  ParameterList?  WS  ")"  WS  ";"  {/***/}
+
+AmbientPropertyMemberDeclaration
+= AccessibilityModifier?  WS  "static"?  PropertyName  CallSignature  WS  ";"  {/***/}
+/ AccessibilityModifier?  WS  "static"?  PropertyName  TypeAnnotation?  WS  ";"  {/***/}
+
+AmbientEnumDeclaration
+= WS  "enum"  WS  IDENTIFIER  WS  "{"  AmbientEnumBody?  WS  "}"  {/***/}
+
+AmbientEnumBody
+= AmbientEnumMemberList  (WS  ",")?  {/***/}
+
+AmbientEnumMemberList
+= AmbientEnumMember  (WS  ","  AmbientEnumMember)*  {/***/}
+
+AmbientEnumMember
+= PropertyName  (WS  "="  ConstantEnumValue)?  {/***/}
+
+AmbientModuleDeclaration
+= WS  "module"  IdentifierPath  WS  "{"  AmbientModuleBody  WS  "}"  {/***/}
+
+AmbientModuleBody
+= AmbientModuleElement*  {/***/}
+
+AmbientModuleElement
+= WS  x:"export"?  el:AmbientVariableDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:AmbientFunctionDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:AmbientClassDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:InterfaceDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:AmbientEnumDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:AmbientModuleDeclaration  { return x ? b.exported(el) : el; }
+/ WS  x:"export"?  el:ImportDeclaration  { return x ? b.exported(el) : el; }
+
+AmbientExternalModuleDeclaration
+= WS  "declare"  WS  "module"  WS  n:STRING_LITERAL  WS  "{"  body:AmbientExternalModuleBody  WS  "}"  {/***/return b.externalModuleDeclaration(b.identifier(n), body); }
+
+AmbientExternalModuleBody
+= AmbientExternalModuleElement*
+
+AmbientExternalModuleElement
+= AmbientModuleElement
+/ ExportAssignment  {/***/}
+/ WS  "export"?  ExternalImportDeclaration  {/***/}
+
+ImportDeclaration
+= WS  "import"  WS  IDENTIFIER  WS  "="  IdentifierPath  WS  ";"  {/***/}
+
+IdentifierPath
+= WS  IDENTIFIER  (WS  "."  WS  IDENTIFIER)*  {/***/}
+
+ClassHeritage
+= ClassExtendsClause?  ImplementsClause?  {/***/}
+
+ClassExtendsClause
+= WS  "extends"  ClassType  {/***/}
+
+ClassType
+= TypeReference  {/***/}
+
+ImplementsClause
+= WS  "implements"  ClassOrInterfaceTypeList  {/***/}
+
+InterfaceDeclaration
+= WS  "interface"  WS  IDENTIFIER  TypeParameters?  InterfaceExtendsClause?  ObjectType  {/***/}
+
+InterfaceExtendsClause
+= WS  "extends"  ClassOrInterfaceTypeList  {/***/}
+
+ClassOrInterfaceTypeList
+= ClassOrInterfaceType  (WS  ","  ClassOrInterfaceType)*  {/***/}
+
+ClassOrInterfaceType
+= TypeReference  {/***/}
+
+ConstantEnumValue
+= WS  SIGNED_INTEGER  {/***/}
+/ WS  HEX_INTEGER_LITERAL  {/***/}
+
+TypeAnnotation
+= WS  ":"  Type  {/***/}
+
+TypeParameters
+= WS  "<"  TypeParameterList  WS  ">"  {/***/}
+
+TypeParameterList
+= TypeParameter  (WS  ","  TypeParameter)*  {/***/}
+
+TypeParameter
+= WS  IDENTIFIER  Constraint?  {/***/}
+
+Constraint
+= WS  "extends"  Type  {/***/}
+
+TypeArguments
+= WS  "<"  TypeArgumentList  WS  ">"  {/***/}
+
+TypeArgumentList
+= TypeArgument  (WS  ","  TypeArgument)*  {/***/}
+
+TypeArgument
+= Type  {/***/}
+
+Type
+= FunctionType  {/***/}
+/ ConstructorType  {/***/}
+/ PrimaryOrUnionType  {/***/}
+
+FunctionType
+= TypeParameters?  WS  "("  ParameterList?  WS  ")"  WS  "=>"  Type  {/***/}
+
+ConstructorType
+= WS  "new"  TypeParameters?  WS  "("  ParameterList?  WS  ")"  WS  "=>"  Type  {/***/}
+
+PrimaryOrUnionType
+= UnionType  {/***/}
+/ PrimaryType  {/***/}
+
+UnionType
+= PrimaryType  (WS  "|"  PrimaryType)+  {/***/}
+
+PrimaryType
+= ArrayType  {/***/}
+/ PrimaryTypeNotArray  {/***/}
+
+ArrayType
+= PrimaryTypeNotArray  (WS_NO_LINE_TERM_HERE  "["  WS  "]")+  {/***/}
+
+PrimaryTypeNotArray
+= ParenthesizedType  {/***/}
+/ PredefinedType  {/***/}
+/ TypeQuery  {/***/}
+/ TypeReference  {/***/}
+/ TupleType  {/***/}
+/ ObjectType  {/***/}
+
+ParenthesizedType
+= WS  "("  Type  WS  ")"  {/***/}
+
+PredefinedType
+= WS  "any"  {/***/}
+/ WS  "number"  {/***/}
+/ WS  "boolean"  {/***/}
+/ WS  "string"  {/***/}
+/ WS  "void"  {/***/}
+
+TypeQuery
+= WS  "typeof"  IdentifierPath  {/***/}
+
+TypeReference
+= IdentifierPath  /* predicate */ &WS_NO_LINE_TERM_HERE  TypeArguments?  {/***/}
+
+TupleType
+= WS  "["  TupleElementTypes  WS  "]"  {/***/}
+
+TupleElementTypes
+= TupleElementType  (WS  ","  TupleElementType)*  {/***/}
+
+TupleElementType
+= Type  {/***/}
+
+ObjectType
+= WS  "{"  TypeBody?  WS  "}"  {/***/}
+
+TypeBody
+= TypeMemberList  (WS  ";")?  {/***/}
+
+TypeMemberList
+= TypeMember  (WS  ";"  TypeMember)*  {/***/}
+
+TypeMember
+= CallSignature  {/***/}
+/ ConstructSignature  {/***/}
+/ IndexSignature  {/***/}
+/ MethodSignature  {/***/}
+/ PropertySignature  {/***/}
+
+CallSignature
+= tp:TypeParameters?  WS  "("  p:ParameterList?  WS  ")"  ret:TypeAnnotation?  { return b.functionDeclaration(null, tp, p[0], p[1], p[2], ret); }
+
+ParameterList
+= p:RequiredParameterList  WS  ","  o:OptionalParameterList  r:(WS  ","  RestParameter)?  { return [p, o, r ? r[2] : null]; }
+/ p:RequiredParameterList  r:(WS  ","  RestParameter)?  { return [p, [], r ? r[2] : null]; }
+/ o:OptionalParameterList  r:(WS  ","  RestParameter)?  { return [[], o, r ? r[2] : null]; }
+/ r:RestParameter  { return [[], [], r]; }
+/ { return [[], [], null]; }
+
+RequiredParameterList
+= h:RequiredParameter  t:(WS  ","  RequiredParameter)*  { return [].concat(h, t.map(function (el) { return el[2]; })); }
+
+RequiredParameter
+= WS  IDENTIFIER  WS  !"?"  ":"  WS  STRING_LITERAL  {/***/}
+/ m:AccessibilityModifier?  WS  n:IDENTIFIER  !(WS  "?")  t:TypeAnnotation?  { var d = b.identifier(n); return t ? b.typed(d, t) : d; /***/}
+
+OptionalParameterList
+= OptionalParameter  (WS  ","  OptionalParameter)*  {/***/}
+
+OptionalParameter
+= WS  IDENTIFIER  WS  "?"  WS  ":"  WS  STRING_LITERAL  {/***/}
+/ AccessibilityModifier?  WS  IDENTIFIER  WS  "?"  TypeAnnotation?  {/***/}
+
+AccessibilityModifier
+= WS  "public"  {/***/}
+/ WS  "private"  {/***/}
+/ WS  "protected"  {/***/}
+
+RestParameter
+= WS  "..."  WS  IDENTIFIER  TypeAnnotation?  {/***/}
+
+ConstructSignature
+= WS  "new"  TypeParameters?  WS  "("  ParameterList?  WS  ")"  TypeAnnotation?  {/***/}
+
+IndexSignature
+= WS  "["  WS  IDENTIFIER  WS  ":"  WS  "string"  WS  "]"  TypeAnnotation  {/***/}
+/ WS  "["  WS  IDENTIFIER  WS  ":"  WS  "number"  WS  "]"  TypeAnnotation  {/***/}
+
+MethodSignature
+= PropertyName  (WS  "?")?  CallSignature  {/***/}
+
+PropertySignature
+= PropertyName  (WS  "?")?  TypeAnnotation?  {/***/}
+
+PropertyName
+= WS  IDENTIFIER_NAME  {/***/}
+/ WS  STRING_LITERAL  {/***/}
+/ WS  NUMERIC_LITERAL  {/***/}
+
+TypeAliasDeclaration
+= WS  "type"  WS  IDENTIFIER  WS  "="  Type  WS  ";"  {/***/}
+
+WS
+= WS_ELEMENT*  {/***/}
+
+WS_ELEMENT
+= WHITESPACE  {/***/}
+/ LINE_TERMINATOR_SEQUENCE  {/***/}
+/ SINGLE_LINE_COMMENT  {/***/}
+/ MULTI_LINE_COMMENT  {/***/}
+
+WS_NO_LINE_TERM_HERE
+= WS_NO_LINE_TERM_HERE_ELEMENT*  {/***/}
+
+WS_NO_LINE_TERM_HERE_ELEMENT
+= WHITESPACE  {/***/}
+/ SINGLE_LINE_COMMENT  {/***/}
+/ MULTI_LINE_COMMENT_NO_LINE_TERM  {/***/}
+
+WHITESPACE  /* simplified; ECMA allows more */
+= " "  {/***/}
+/ "\t"  {/***/}
+
+LINE_TERMINATOR_SEQUENCE  /* simplified; ECMA allows more */
+= "\r\n"  {/***/}
+/ "\n"  {/***/}
+/ "\r"  {/***/}
+
+MULTI_LINE_COMMENT
+= "/*"  (!"*/"  .)*  "*/"  {/***/}
+
+MULTI_LINE_COMMENT_NO_LINE_TERM
+= "/*"  (!"*/"  !LINE_TERMINATOR_SEQUENCE  .)*  "*/"  {/***/}
+
+SINGLE_LINE_COMMENT
+= "//"  (!LINE_TERMINATOR_SEQUENCE  .)*  {/***/}
+
+IDENTIFIER
+= !RESERVED_WORD  n:IDENTIFIER_NAME  { return n; }
+
+IDENTIFIER_NAME  /* simplified; ECMA allows more */
+= h:[a-zA-Z$_]  t:[0-9a-zA-Z$_]*  { return h + t.join(''); }
+
+RESERVED_WORD
+= KEYWORD  ![0-9a-zA-Z$_]  {/***/}
+/ FUTURE_RESERVED_WORD  ![0-9a-zA-Z$_]  {/***/}
+/ FUTURE_RESERVED_WORD_STRICT  ![0-9a-zA-Z$_]  {/***/}
+/ NULL_LITERAL  {/***/}
+/ BOOLEAN_LITERAL  {/***/}
+
+KEYWORD
+= "break"   /  "do"    /  "instanceof" /  "typeof"
+/ "case"   /  "else"   /  "new"     /  "var"
+/ "catch"   /  "finally"  /  "return"   /  "void"
+/ "continue" /  "for"    /  "switch"   /  "while"
+/ "debugger" /  "function" /  "this"    /  "with"
+/ "default"  /  "if"    /  "throw"
+/ "delete"  /  "in"    /  "try"
+
+FUTURE_RESERVED_WORD
+= "class" /  "enum"  /  "extends" /  "super"
+/ "const" /  "export" /  "import"
+
+FUTURE_RESERVED_WORD_STRICT
+= "implements" /  "let"   /  "private"  /  "public"
+/ "interface"  /  "package" /  "protected" /  "static"
+/ "yield"
+
+NULL_LITERAL
+= "null"  ![0-9a-zA-Z$_]  {/***/}
+
+BOOLEAN_LITERAL
+= "true"  ![0-9a-zA-Z$_]  {/***/}
+/ "false"  ![0-9a-zA-Z$_]  {/***/}
+
+NUMERIC_LITERAL
+= DECIMAL_LITERAL  {/***/}
+/ HEX_INTEGER_LITERAL  {/***/}
+
+DECIMAL_LITERAL
+= ("0"  /  [1-9]  [0-9]*)  "."  [0-9]*  ([eE]  SIGNED_INTEGER)?  {/***/}
+/ "."  [0-9]+  ([eE]  SIGNED_INTEGER)?  {/***/}
+/ ("0"  /  [1-9]  [0-9]*)  ([eE]  SIGNED_INTEGER)?  {/***/}
+
+SIGNED_INTEGER
+= [0-9]+  {/***/}
+/ "+"  [0-9]+  {/***/}
+/ "-"  [0-9]+  {/***/}
+
+HEX_INTEGER_LITERAL
+= "0"  [xX]  [0-9a-fA-F]+  {/***/}
+
+STRING_LITERAL
+= '"'  cs:(!'"'  STRING_CHARACTER)*  '"'  { return cs.map(function (c) { return c[1] }).join(''); }
+/ "'"  cs:(!"'"  STRING_CHARACTER)*  "'"  { return cs.map(function (c) { return c[1] }).join(''); }
+
+STRING_CHARACTER
+=!"\\"  !LINE_TERMINATOR_SEQUENCE  c:.  { return c; }
+/ "\\"  ESCAPE_SEQUENCE  {/***/}
+/ "\\"  LINE_TERMINATOR_SEQUENCE  {/***/}
+
+ESCAPE_SEQUENCE
+= ['"\\bfnrtv]  {/***/}
+/ "0"  ![0-9]  {/***/}
+/ "x"  [0-9a-fA-F]  [0-9a-fA-F]  {/***/}
+/ "u"  [0-9a-fA-F]  [0-9a-fA-F]  [0-9a-fA-F]  [0-9a-fA-F]  {/***/}
+/ ![0-9]  !"x"  !"u"  !LINE_TERMINATOR_SEQUENCE  .  {/***/}

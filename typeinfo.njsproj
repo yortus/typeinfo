@@ -21,8 +21,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{7aaad222-a873-4b62-a811-ff00ca3cc854}</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>
-    </StartupFile>
+    <StartupFile>src\index.js</StartupFile>
     <StartWebBrowser>False</StartWebBrowser>
     <SearchPath>
     </SearchPath>
@@ -47,14 +46,23 @@
     <Content Include="LICENSE" />
     <Content Include="package.json" />
     <Content Include="README.md" />
+    <Content Include="src\tslang\parse\ts.peg" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="src\" />
+    <Folder Include="src\tslang\" />
+    <Folder Include="src\tslang\ast\" />
+    <Folder Include="src\tslang\parse\" />
     <Folder Include="src\typings\" />
+    <Folder Include="src\typings\node\" />
     <Folder Include="test\" />
   </ItemGroup>
   <ItemGroup>
+    <TypeScriptCompile Include="exports.d.ts" />
+    <TypeScriptCompile Include="imports.d.ts" />
     <TypeScriptCompile Include="src\index.ts" />
+    <TypeScriptCompile Include="src\tslang\parse\index.ts" />
+    <TypeScriptCompile Include="src\typings\node\node.d.ts" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="gulpfile.js" />
